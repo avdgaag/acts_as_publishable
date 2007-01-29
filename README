@@ -1,0 +1,19 @@
+= acts_as_publishable
+
+This plugin lets you add basic time-based publishing-behaviour to your models by specifying a publication
+range with to date attributes.
+
+To use simply call the plugin in your model:
+
+  class Post < ActiveRecord::Base
+    acts_as_publishable
+  end
+
+This includes two special finder methods for finding published and unpublished models, and adds some
+basic instance methods for working with individual objects--most notably the 'published?'-flag.
+
+You can check if the plugin installed correctly by testing it yourself (in the plugin dir.):
+
+  rake test
+
+Find more information at this plugins homepage at http://code.google.com/p/actsaspublishable.

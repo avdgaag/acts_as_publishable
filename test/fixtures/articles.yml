@@ -1,0 +1,26 @@
+undated_article:
+  id: 1
+  title: A post without publication dates
+  publish_at:
+  unpublish_at:
+published_article:
+  id: 2
+  title: A post with a publication date before now
+  publish_at: <%= 10.minutes.ago.to_s(:db) %>
+  unpublish_at:
+scheduled_article:
+  id: 3
+  title: A post that is to be published in the future
+  publish_at: <%= 2.days.since.to_s(:db) %>
+  unpublish_at: <%= 10.days.since.to_s(:db) %>
+unpublished_article:
+  id: 4
+  title: A post that has already been unpublished
+  publish_at: <%= 10.days.ago.to_s(:db) %>
+  unpublish_at: <%= 2.days.ago.to_s(:db) %>
+regular_article:
+  id: 5
+  title: A published post with both dates set
+  publish_at: <%= 2.days.ago.to_s(:db) %>
+  unpublish_at: <%= 2.days.since.to_s(:db) %>
+  
