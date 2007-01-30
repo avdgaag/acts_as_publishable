@@ -1,4 +1,4 @@
-#  Copyright (c) 2007 Arjan van der Gaag
+#  Copyright (c) 2005 Arjan van der Gaag
 #  
 #  Permission is hereby granted, free of charge, to any person obtaining
 #  a copy of this software and associated documentation files (the
@@ -96,9 +96,7 @@ module Agw #:nodoc:
         # Special finder method for finding all objects that are published.
         # Use the same way as #find
         def find_published(*args)
-          t = Time.now.to_s(:db)
-          c = "(publish_at IS NULL OR publish_at <= '#{t}') AND (unpublish_at IS NULL OR unpublish_at > '#{t}')"
-          with_scope :find => { :conditions => c} do
+          published_only do
             find(*args)
           end
         end
@@ -106,11 +104,67 @@ module Agw #:nodoc:
         # Special finder method for finding all objects that are not published.
         # Use the same way as #find
         def find_unpublished(*args)
-          t = Time.now.to_s(:db)
-          c = "(publish_at IS NOT NULL AND publish_at > '#{t}') OR (unpublish_at IS NOT NULL AND unpublish_at < '#{t}')"
-          with_scope :find => { :conditions => c } do
+          unpublished_only do
             find(*args)
           end
+        end
+        
+        # Takes a block whose containing SQL queries are limited to
+        # published objects. You can pass a boolean flag indicating
+        # whether this scope should be applied or not--for example,
+        # you might want to disable it when the user is an administrator.
+        # By default the scope is applied.
+        # 
+        # Example usage:
+        # 
+        #   published_only(!logged_in?) do
+        #     @posts = Post.find_by_slug params[:slug]
+        #   end
+        # 
+        def published_only(apply = true)
+          if apply
+            with_scope :find => { :conditions => published_conditions } do
+              yield
+            end
+          else
+            yield
+          end
+        end
+        
+        # Takes a block whose containing SQL queries are limited to
+        # unpublished objects. You can pass a boolean flag indicating
+        # whether this scope should be applied or not--for example,
+        # you might want to disable it when the user is an administrator.
+        # By default the scope is applied.
+        #
+        # Example usage:
+        # 
+        #   unpublished_only(logged_in?) do
+        #     @posts = Post.find_by_slug params[:slug]
+        #   end
+        # 
+        def unpublished_only(apply = true)
+          if apply
+            with_scope :find => { :conditions => unpublished_conditions } do
+              yield
+            end
+          else
+            yield
+          end
+        end
+        
+        protected
+
+        # returns a string for use in SQL to filter the query to unpublished results only
+        # Meant for internal use only
+        def unpublished_conditions
+          "(publish_at IS NOT NULL AND publish_at > '#{Time.now.to_s(:db)}') OR (unpublish_at IS NOT NULL AND unpublish_at < '#{Time.now.to_s(:db)}')"
+        end
+        
+        # return a string for use in SQL to filter the query to published results only
+        # Meant for internal use only
+        def published_conditions
+          "(publish_at IS NULL OR publish_at <= '#{Time.now.to_s(:db)}') AND (unpublish_at IS NULL OR unpublish_at > '#{Time.now.to_s(:db)}')"
         end
       end
       

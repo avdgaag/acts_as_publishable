@@ -56,4 +56,18 @@ class ActsAsPublishableTest < Test::Unit::TestCase
       assert !p.reload.published?      
     end
   end
+  
+  def test_published_only
+    @set1 = Article.find_published :all
+    Article.published_only do
+      @set2 = Article.find :all
+    end
+    assert_equal @set1, @set2
+    
+    @set1 = Article.find_unpublished :all
+    Article.unpublished_only do
+      @set2 = Article.find :all
+    end
+    assert_equal @set1, @set2
+  end
 end
