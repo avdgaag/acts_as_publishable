@@ -17,3 +17,5 @@ You can check if the plugin installed correctly by testing it yourself (in the p
   rake test
 
 Find more information at this plugins homepage at http://code.google.com/p/actsaspublishable.
+
+Copyright (c) 2007 Arjan van der Gaag, released under the MIT license
