@@ -170,6 +170,53 @@ module Agw #:nodoc:
       
       module InstanceMethods
         
+        # virtual attribute that returns the publication date as string
+        # so it can be used in text fields rather than with Rails'
+        # default and unfriendly select boxes.
+        def publish_at_string
+          publish_at.to_s(:db) unless publish_at.nil?
+        end
+
+        # virtual attribute that returns the unpublication date as string
+        # so it can be used in text fields rather than with Rails'
+        # default and unfriendly select boxes.
+        def unpublish_at_string
+          unpublish_at.to_s(:db) unless publish_at.nil?
+        end
+        
+        # virtual attribute setter that takes the publication date as string
+        # so it can be used in text fields rather than with Rails'
+        # default and unfriendly select boxes.
+        # Any errors are caught and the flag that is raised will be handled in the custom
+        # validation method.
+        def publish_at_string=(t)
+          self.publish_at = Time.parse(t)
+        rescue ArgumentError
+          @publish_at_is_invalid = true
+        end
+        
+        # virtual attribute that takes the unpublication date as string
+        # so it can be used in text fields rather than with Rails'
+        # default and unfriendly select boxes.
+        # Any errors are caught and the flag that is raised will be handled in the custom
+        # validation method.
+        def unpublish_at_string=(t)
+          self.unpublish_at = Time.parse(t)
+        rescue ArgumentError
+          @unpublish_at_is_invalid = true
+        end
+        
+        private
+        
+          # Custom validation that handles badly formatted date/time input
+          # given via publish_at_string= and unpublish_at_string.
+          def validate
+            errors.add(:publish_at, 'is invalid') if @publish_at_is_invalid
+            errors.add(:unpublish_at, 'is invalid') if @unpublish_at_is_invalid
+          end
+        
+        public
+        
         # Return whether the current object is published or not
         def published?
           (publish_at.nil? || (publish_at <=> Time.now) <= 0) && (unpublish_at.nil? || (unpublish_at <=> Time.now) >= 0)

@@ -8,7 +8,7 @@ class ActsAsPublishableTest < Test::Unit::TestCase
 
   def setup
     @published_articles = [@undated_article, @published_article, @regular_article]
-    @unpublished_articles = [@scheduled_article, @unpublished_article]
+    @unpublished_articles = [@scheduled_article, @unpublished_article, @fixed_article]
   end
 
   def test_published
@@ -69,5 +69,34 @@ class ActsAsPublishableTest < Test::Unit::TestCase
       @set2 = Article.find :all
     end
     assert_equal @set1, @set2
+  end
+  
+  def test_date_as_string
+    # test getting the values as strings
+    assert_equal '2006-05-23 08:00:00', @fixed_article.publish_at_string
+    assert_equal '2006-05-24 09:00:00', @fixed_article.unpublish_at_string
+    
+    # test setting correct values as strings
+    new_value = '2006-05-24 08:00:00'
+    @fixed_article.publish_at_string = new_value
+    assert @fixed_article.save
+    assert_equal new_value, @fixed_article.reload.publish_at_string
+    assert_equal new_value, @fixed_article.publish_at.to_s(:db)
+
+    new_value = '2006-05-24 10:00:00'
+    @fixed_article.unpublish_at_string = new_value
+    assert @fixed_article.save
+    assert_equal new_value, @fixed_article.reload.unpublish_at_string
+    assert_equal new_value, @fixed_article.unpublish_at.to_s(:db)
+    
+    # test setting incorrect values as strings
+    new_value = '2006-32-99 36:201:00'
+    @fixed_article.publish_at_string = new_value
+    @fixed_article.unpublish_at_string = new_value
+    assert !@fixed_article.save
+    assert @fixed_article.errors.on(:publish_at)
+    assert @fixed_article.errors.on(:unpublish_at)
+    assert_equal 'is invalid', @fixed_article.errors.on(:publish_at)
+    assert_equal 'is invalid', @fixed_article.errors.on(:unpublish_at)
   end
 end
