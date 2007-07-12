@@ -21,10 +21,11 @@
 
 module Agw #:nodoc:
   module Acts #:nodoc:
+
     # Specify this act if you want to show or hide your object based on date/time settings. This act lets you
     # specify two dates two form a range in which the model is publicly available; it is unavailable outside it.
     # 
-    # Usage
+    # == Usage
     # 
     # You can add this behaviour to your model like so:
     # 
@@ -50,6 +51,20 @@ module Agw #:nodoc:
     #   Post.find_published(:all).size    # => 10
     #   Post.find_unpublished(:all).size  # => 5
     # 
+    # Finally, there are scoping methods for limiting your own custom finders to
+    # just published or unpublished objects. These are simple wrapper methods for
+    # the <tt>#with_scope</tt> method and hence are used as follows:
+    #
+    #   class Post < ActiveRecord::Base
+    #     def find_recent
+    #       published_only do
+    #         find :all, :limit => 5, :order => 'created_at DESC'
+    #       end
+    #     end
+    #   end
+    # 
+    # Do note that it is considered poor style to use scoping methods like this
+    # in your controller. You can, but always try moving it into you model.
     module Publishable
     
       def self.included(base) #:nodoc:
@@ -59,9 +74,14 @@ module Agw #:nodoc:
       module ClassMethods
         # == Configuration options
         #
-        # Right now this plugin has no configuration options. Do note that models with no publication dates
-        # are by default published, not unpublished. So, if you want to hide your model you have to explicitly
-        # set these dates.
+        # Right now this plugin has only one configuration option. Models with no publication dates
+        # are by default published, not unpublished. If you want to hide your model when it has no
+        # explicit publication date set, you can turn off this behaviour with the
+        # +publish_by_default+ (defaults to <tt>true</tt>) option like so:
+        #
+        #   class Post < ActiveRecord::Base
+        #     acts_as_publishable :publish_by_default => false
+        #   end
         #
         # == Database Schema
         #
@@ -87,10 +107,12 @@ module Agw #:nodoc:
         #     end
         #   end
         # 
-        def acts_as_publishable()
+        def acts_as_publishable(options = { :publish_by_default => true })
           # don't allow multiple calls
           return if self.included_modules.include?(Agw::Acts::Publishable::InstanceMethods)
           send :include, Agw::Acts::Publishable::InstanceMethods
+
+          after_create :set_default_publication_date if options[:publish_by_default]
         end
         
         # Special finder method for finding all objects that are published.
@@ -117,7 +139,7 @@ module Agw #:nodoc:
         # 
         # Example usage:
         # 
-        #   published_only(!logged_in?) do
+        #   Post.published_only(!logged_in?) do
         #     @posts = Post.find_by_slug params[:slug]
         #   end
         # 
@@ -139,7 +161,7 @@ module Agw #:nodoc:
         #
         # Example usage:
         # 
-        #   unpublished_only(logged_in?) do
+        #   Post.unpublished_only(logged_in?) do
         #     @posts = Post.find_by_slug params[:slug]
         #   end
         # 
@@ -190,7 +212,7 @@ module Agw #:nodoc:
         # Any errors are caught and the flag that is raised will be handled in the custom
         # validation method.
         def publish_at_string=(t)
-          self.publish_at = Time.parse(t)
+          self.publish_at = t.blank? ? nil : Time.parse(t)
         rescue ArgumentError
           @publish_at_is_invalid = true
         end
@@ -201,21 +223,28 @@ module Agw #:nodoc:
         # Any errors are caught and the flag that is raised will be handled in the custom
         # validation method.
         def unpublish_at_string=(t)
-          self.unpublish_at = Time.parse(t)
+          self.unpublish_at = t.blank? ? nil : Time.parse(t)
         rescue ArgumentError
           @unpublish_at_is_invalid = true
         end
         
-        private
+        # ActiveRecrod callback fired on +after_create+ to make 
+        # sure a new object always gets a publication date; if 
+        # none is supplied it defaults to the creation date.
+        def set_default_publication_date
+          update_attribute(:publish_at, created_at) if publish_at.nil?
+        end
         
-          # Custom validation that handles badly formatted date/time input
-          # given via publish_at_string= and unpublish_at_string.
-          def validate
-            errors.add(:publish_at, 'is invalid') if @publish_at_is_invalid
-            errors.add(:unpublish_at, 'is invalid') if @unpublish_at_is_invalid
-          end
+      private
         
-        public
+        # Custom validation that handles badly formatted date/time input
+        # given via publish_at_string= and unpublish_at_string.
+        def validate
+          errors.add(:publish_at, 'is invalid')   if @publish_at_is_invalid
+          errors.add(:unpublish_at, 'is invalid') if @unpublish_at_is_invalid
+        end
+        
+      public
         
         # Return whether the current object is published or not
         def published?
