@@ -196,14 +196,14 @@ module Agw #:nodoc:
         # so it can be used in text fields rather than with Rails'
         # default and unfriendly select boxes.
         def publish_at_string
-          publish_at.to_s(:db) unless publish_at.nil?
+          publish_at.strftime('%Y-%m-%d %H:%M:%S') unless publish_at.nil?
         end
 
         # virtual attribute that returns the unpublication date as string
         # so it can be used in text fields rather than with Rails'
         # default and unfriendly select boxes.
         def unpublish_at_string
-          unpublish_at.to_s(:db) unless publish_at.nil?
+          unpublish_at.strftime('%Y-%m-%d %H:%M:%S') unless unpublish_at.nil?
         end
         
         # virtual attribute setter that takes the publication date as string
