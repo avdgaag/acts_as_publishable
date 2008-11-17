@@ -111,24 +111,29 @@ module Agw #:nodoc:
           # don't allow multiple calls
           return if self.included_modules.include?(Agw::Acts::Publishable::InstanceMethods)
           send :include, Agw::Acts::Publishable::InstanceMethods
-
+          
+          named_scope :published, :conditions => published_conditions
+          named_scope :unpublished, :conditions => unpublished_conditions
+          
+          named_scope :published_only, lambda {|*args|
+            bool = (args.first.nil? ? true : (args.first)) # nil = true by default
+            {:conditions => (bool ? published_conditions : unpublished_conditions)}
+          }
           after_create :set_default_publication_date if options[:publish_by_default]
         end
         
         # Special finder method for finding all objects that are published.
         # Use the same way as #find
+        # DEPRECATED: use Thing.published.find(*args) instead
         def find_published(*args)
-          published_only do
-            find(*args)
-          end
+          published.find(*args)
         end
         
         # Special finder method for finding all objects that are not published.
         # Use the same way as #find
+        # DEPRECATED: use Thing.unpublished.find(*args) instead
         def find_unpublished(*args)
-          unpublished_only do
-            find(*args)
-          end
+          unpublished.find(*args)
         end
         
         # Takes a block whose containing SQL queries are limited to
@@ -143,15 +148,7 @@ module Agw #:nodoc:
         #     @posts = Post.find_by_slug params[:slug]
         #   end
         # 
-        def published_only(apply = true)
-          if apply
-            with_scope :find => { :conditions => published_conditions } do
-              yield
-            end
-          else
-            yield
-          end
-        end
+        # DEPRECATED. See published_only() named_scope
         
         # Takes a block whose containing SQL queries are limited to
         # unpublished objects. You can pass a boolean flag indicating
@@ -165,28 +162,20 @@ module Agw #:nodoc:
         #     @posts = Post.find_by_slug params[:slug]
         #   end
         # 
-        def unpublished_only(apply = true)
-          if apply
-            with_scope :find => { :conditions => unpublished_conditions } do
-              yield
-            end
-          else
-            yield
-          end
-        end
+        # DEPRECATED. See published_only(), published and unpublished named_scopes
         
         protected
 
         # returns a string for use in SQL to filter the query to unpublished results only
         # Meant for internal use only
         def unpublished_conditions
-          "(publish_at IS NOT NULL AND publish_at > '#{Time.now.to_s(:db)}') OR (unpublish_at IS NOT NULL AND unpublish_at < '#{Time.now.to_s(:db)}')"
+          "(#{table_name}.publish_at IS NOT NULL AND #{table_name}.publish_at > '#{Time.now.to_s(:db)}') OR (#{table_name}.unpublish_at IS NOT NULL AND #{table_name}.unpublish_at < '#{Time.now.to_s(:db)}')"
         end
         
         # return a string for use in SQL to filter the query to published results only
         # Meant for internal use only
         def published_conditions
-          "(publish_at IS NULL OR publish_at <= '#{Time.now.to_s(:db)}') AND (unpublish_at IS NULL OR unpublish_at > '#{Time.now.to_s(:db)}')"
+          "(#{table_name}.publish_at IS NULL OR #{table_name}.publish_at <= '#{Time.now.to_s(:db)}') AND (#{table_name}.unpublish_at IS NULL OR #{table_name}.unpublish_at > '#{Time.now.to_s(:db)}')"
         end
       end
       
