@@ -24,6 +24,11 @@ module Agw #:nodoc:
 
     # Specify this act if you want to show or hide your object based on date/time settings. This act lets you
     # specify two dates two form a range in which the model is publicly available; it is unavailable outside it.
+    #
+    # == Requirements
+    #
+    # This plugin requires Rails 2.1's <tt>named_scope</tt> functions. When using older
+    # versions of Rails you can use the 1.0 release of this plugin. Find it at http://github.com/avdgaag/acts_as_publishable/tree/REL-1.0.
     # 
     # == Usage
     # 
@@ -44,27 +49,61 @@ module Agw #:nodoc:
     #   post.unpublish!
     #   post.published? # => false
     #   
-    # You can use two special finder methods to find the published or unpublished objects.
+    # You can use two named scopes to find the published or unpublished objects.
     # Use them like you use your standard <tt>#find</tt>:
     #   
     #   Post.find(:all).size              # => 15
-    #   Post.find_published(:all).size    # => 10
-    #   Post.find_unpublished(:all).size  # => 5
+    #   Post.published.size               # => 10
+    #   Post.unpublished.size             # => 5
     # 
-    # Finally, there are scoping methods for limiting your own custom finders to
-    # just published or unpublished objects. These are simple wrapper methods for
-    # the <tt>#with_scope</tt> method and hence are used as follows:
+    # Read more about named scope in the Rails documentation.
+    # 
+    # There is also the <tt>#published_only</tt> scope, that accepts a boolean
+    # flag indicating whether the scope should be applied or not. By default,
+    # it will apply it--but you can disable it if you want to (say, when a
+    # user is an administrator allowed to say all).
     #
-    #   class Post < ActiveRecord::Base
-    #     def find_recent
-    #       published_only do
-    #         find :all, :limit => 5, :order => 'created_at DESC'
-    #       end
-    #     end
-    #   end
+    # Example:
+    #
+    #   post.published_only(current_user.admin?)
+    #
+    # Here, admin users get all posts, normal users get only published posts.
+    #
+    # == Setting the dates as strings
+    #
+    # You can use the <tt>publish_at</tt> and <tt>unpublish_at</tt> attributes
+    # like any other. Do note that this plugin comes with two special virtual
+    # attributes that allow you to set the dates as strings, that is: with 
+    # text fields rather than select boxes:
+    #
+    #   <%= f.text_field :publish_at_string %>
+    #
+    # <tt>publish_at_string</tt> and <tt>unpublish_at_string</tt> will
+    # return their values formatted as strings, while <tt>publish_at_string=</tt>
+    # <tt>publish_at_string=</tt> will try to parse the strings passed to them.
+    # When the strings cannot be parsed the model will be invalid.
+    #
+    # == Credits
+    #
+    # acts_as_pubishable was written by Arjan van der Gaag (http://github.com/avdgaag) with contributions
+    # from Ismael Celis (http://github.com/ismasan).
+    #
+    # Version:: 1.1
+    # Author:: Arjan van der Gaag
+    # URL:: http://github.com/avdgaag/acts_as_publishable
+    # License:: MIT
+    #
+    # == History
+    #
+    # === 1.1: 
     # 
-    # Do note that it is considered poor style to use scoping methods like this
-    # in your controller. You can, but always try moving it into you model.
+    # * refactor to use <tt>named_scope</tt>. Rails 2.1 or greater now required. By Ismael Celis.
+    # * Updated documentation
+    # * Use a custom validation method rather than <tt>#validate</tt>
+    #
+    # === 1.0:
+    # 
+    # * first release.
     module Publishable
     
       def self.included(base) #:nodoc:
@@ -115,15 +154,18 @@ module Agw #:nodoc:
           named_scope :published, :conditions => published_conditions
           named_scope :unpublished, :conditions => unpublished_conditions
           
-          named_scope :published_only, lambda {|*args|
+          named_scope :published_only, lambda { |*args|
             bool = (args.first.nil? ? true : (args.first)) # nil = true by default
             {:conditions => (bool ? published_conditions : unpublished_conditions)}
           }
+          
           after_create :set_default_publication_date if options[:publish_by_default]
+          validate :sensible_publication_dates_as_string
         end
         
         # Special finder method for finding all objects that are published.
         # Use the same way as #find
+        #
         # DEPRECATED: use Thing.published.find(*args) instead
         def find_published(*args)
           published.find(*args)
@@ -131,52 +173,25 @@ module Agw #:nodoc:
         
         # Special finder method for finding all objects that are not published.
         # Use the same way as #find
+        #
         # DEPRECATED: use Thing.unpublished.find(*args) instead
         def find_unpublished(*args)
           unpublished.find(*args)
         end
         
-        # Takes a block whose containing SQL queries are limited to
-        # published objects. You can pass a boolean flag indicating
-        # whether this scope should be applied or not--for example,
-        # you might want to disable it when the user is an administrator.
-        # By default the scope is applied.
-        # 
-        # Example usage:
-        # 
-        #   Post.published_only(!logged_in?) do
-        #     @posts = Post.find_by_slug params[:slug]
-        #   end
-        # 
-        # DEPRECATED. See published_only() named_scope
-        
-        # Takes a block whose containing SQL queries are limited to
-        # unpublished objects. You can pass a boolean flag indicating
-        # whether this scope should be applied or not--for example,
-        # you might want to disable it when the user is an administrator.
-        # By default the scope is applied.
-        #
-        # Example usage:
-        # 
-        #   Post.unpublished_only(logged_in?) do
-        #     @posts = Post.find_by_slug params[:slug]
-        #   end
-        # 
-        # DEPRECATED. See published_only(), published and unpublished named_scopes
-        
         protected
 
-        # returns a string for use in SQL to filter the query to unpublished results only
-        # Meant for internal use only
-        def unpublished_conditions
-          "(#{table_name}.publish_at IS NOT NULL AND #{table_name}.publish_at > '#{Time.now.to_s(:db)}') OR (#{table_name}.unpublish_at IS NOT NULL AND #{table_name}.unpublish_at < '#{Time.now.to_s(:db)}')"
-        end
+          # returns a string for use in SQL to filter the query to unpublished results only
+          # Meant for internal use only.
+          def unpublished_conditions
+            "(#{table_name}.publish_at IS NOT NULL AND #{table_name}.publish_at > '#{Time.now.to_s(:db)}') OR (#{table_name}.unpublish_at IS NOT NULL AND #{table_name}.unpublish_at < '#{Time.now.to_s(:db)}')"
+          end
         
-        # return a string for use in SQL to filter the query to published results only
-        # Meant for internal use only
-        def published_conditions
-          "(#{table_name}.publish_at IS NULL OR #{table_name}.publish_at <= '#{Time.now.to_s(:db)}') AND (#{table_name}.unpublish_at IS NULL OR #{table_name}.unpublish_at > '#{Time.now.to_s(:db)}')"
-        end
+          # return a string for use in SQL to filter the query to published results only
+          # Meant for internal use only.
+          def published_conditions
+            "(#{table_name}.publish_at IS NULL OR #{table_name}.publish_at <= '#{Time.now.to_s(:db)}') AND (#{table_name}.unpublish_at IS NULL OR #{table_name}.unpublish_at > '#{Time.now.to_s(:db)}')"
+          end
       end
       
       module InstanceMethods
@@ -198,8 +213,11 @@ module Agw #:nodoc:
         # virtual attribute setter that takes the publication date as string
         # so it can be used in text fields rather than with Rails'
         # default and unfriendly select boxes.
+        #
         # Any errors are caught and the flag that is raised will be handled in the custom
         # validation method.
+        #--
+        # TODO: this method may need some more sanity-checking since the ArgumenError may not always be raised when expected.
         def publish_at_string=(t)
           self.publish_at = t.blank? ? nil : Time.parse(t)
         rescue ArgumentError
@@ -209,8 +227,11 @@ module Agw #:nodoc:
         # virtual attribute that takes the unpublication date as string
         # so it can be used in text fields rather than with Rails'
         # default and unfriendly select boxes.
+        #
         # Any errors are caught and the flag that is raised will be handled in the custom
         # validation method.
+        #--
+        # TODO: this method may need some more sanity-checking since the ArgumenError may not always be raised when expected.
         def unpublish_at_string=(t)
           self.unpublish_at = t.blank? ? nil : Time.parse(t)
         rescue ArgumentError
@@ -227,8 +248,10 @@ module Agw #:nodoc:
       private
         
         # Custom validation that handles badly formatted date/time input
-        # given via publish_at_string= and unpublish_at_string.
-        def validate
+        # given via <tt>publish_at_string=</tt> and <tt>unpublish_at_string=</tt>.
+        #--
+        # TODO: change the error message to the Rails default 'invalid' error message.
+        def sensible_publication_dates_as_string
           errors.add(:publish_at, 'is invalid')   if @publish_at_is_invalid
           errors.add(:unpublish_at, 'is invalid') if @unpublish_at_is_invalid
         end

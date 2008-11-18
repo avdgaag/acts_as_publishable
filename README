@@ -1,7 +1,8 @@
-= acts_as_publishable
+= acts_as_publishable 1.1
 
-This plugin lets you add basic time-based publishing-behaviour to your models by specifying a publication
-range with to date attributes.
+This plugin lets you add basic time-based publishing-behaviour to your models by specifying a publication range with to date attributes.
+
+== Usage
 
 To use simply call the plugin in your model:
 
@@ -9,13 +10,16 @@ To use simply call the plugin in your model:
     acts_as_publishable
   end
 
-This includes two special finder methods for finding published and unpublished models, and adds some
-basic instance methods for working with individual objects--most notably the 'published?'-flag.
+This includes two special finder methods for finding published and unpublished models, and adds some basic instance methods for working with individual objects--most notably the 'published?'-flag.
+
+== Testing
 
 You can check if the plugin installed correctly by testing it yourself (in the plugin dir.):
 
   rake test
 
-Find more information at this plugins homepage at http://github.com/avdgaag/acts_as_publishable/wikis
+== More information
+
+Find more information in the inline documentation or at this plugin's homepage at http://github.com/avdgaag/acts_as_publishable
 
 Copyright (c) 2007 Arjan van der Gaag, released under the MIT license
