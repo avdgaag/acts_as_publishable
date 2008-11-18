@@ -57,20 +57,6 @@ class ActsAsPublishableTest < Test::Unit::TestCase
     end
   end
   
-  def test_published_only
-    @set1 = Article.find_published :all
-    Article.published_only do
-      @set2 = Article.find :all
-    end
-    assert_equal @set1, @set2
-    
-    @set1 = Article.find_unpublished :all
-    Article.unpublished_only do
-      @set2 = Article.find :all
-    end
-    assert_equal @set1, @set2
-  end
-  
   def test_date_as_string
     # test getting the values as strings
     assert_equal '2006-05-23 08:00:00', @fixed_article.publish_at_string

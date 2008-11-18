@@ -219,7 +219,7 @@ module Agw #:nodoc:
         #--
         # TODO: this method may need some more sanity-checking since the ArgumenError may not always be raised when expected.
         def publish_at_string=(t)
-          self.publish_at = t.blank? ? nil : Time.parse(t)
+          self.publish_at = t.blank? ? nil : Time.zone.parse(t)
         rescue ArgumentError
           @publish_at_is_invalid = true
         end
@@ -233,7 +233,7 @@ module Agw #:nodoc:
         #--
         # TODO: this method may need some more sanity-checking since the ArgumenError may not always be raised when expected.
         def unpublish_at_string=(t)
-          self.unpublish_at = t.blank? ? nil : Time.parse(t)
+          self.unpublish_at = t.blank? ? nil : Time.zone.parse(t)
         rescue ArgumentError
           @unpublish_at_is_invalid = true
         end
