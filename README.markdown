@@ -1,3 +1,5 @@
+NOTE: This project is outdated. Use is not recommended. It is kept online as a reminder of the code I wrote several years ago, making the stuff I do now look good.
+
 # acts\_as\_publishable 1.1
 
 This plugin lets you add basic time-based publishing-behaviour to your models by specifying a publication range with to date attributes.
